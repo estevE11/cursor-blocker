@@ -1,160 +1,69 @@
-import type { Session, HookPayload, ServerMessage } from "./types.js";
-import { SESSION_TIMEOUT_MS, USER_INPUT_TOOLS } from "./types.js";
+import type { ServerMessage } from "@cursor-blocker/shared";
+import { CursorCdpWatcher } from "./cursor-cdp-watcher.js";
 
 type StateChangeCallback = (message: ServerMessage) => void;
 
-class SessionState {
-  private sessions: Map<string, Session> = new Map();
-  private listeners: Set<StateChangeCallback> = new Set();
-  private cleanupInterval: NodeJS.Timeout | null = null;
+function deriveServerMessage(snapshot: ReturnType<CursorCdpWatcher["getSnapshot"]>): ServerMessage {
+  // Strategy 1: CDP remote-debugging based detection.
+  // WORKING (unblocked): Cursor UI indicates AI is generating.
+  // IDLE (blocked): otherwise.
+  const working = snapshot.connected && snapshot.generating ? 1 : 0;
+  const sessions = snapshot.connected ? 1 : 0;
+  return { type: "state", blocked: working === 0, sessions, working, waitingForInput: 0 };
+}
 
-  constructor() {
-    // Start cleanup interval for stale sessions
-    this.cleanupInterval = setInterval(() => {
-      this.cleanupStaleSessions();
-    }, 30_000); // Check every 30 seconds
+class CursorState {
+  private watcher = new CursorCdpWatcher();
+  private listeners: Set<StateChangeCallback> = new Set();
+  private started = false;
+  private lastMessage: ServerMessage = {
+    type: "state",
+    blocked: true,
+    sessions: 0,
+    working: 0,
+    waitingForInput: 0,
+  };
+  private unsubscribeWatcher: (() => void) | null = null;
+
+  start(): void {
+    if (this.started) return;
+    this.started = true;
+
+    this.watcher.start();
+    this.unsubscribeWatcher = this.watcher.subscribe((snapshot) => {
+      const next = deriveServerMessage(snapshot);
+      const changed =
+        next.blocked !== (this.lastMessage as any).blocked ||
+        next.sessions !== (this.lastMessage as any).sessions ||
+        next.working !== (this.lastMessage as any).working;
+
+      this.lastMessage = next;
+      if (changed) this.broadcast();
+    });
   }
 
   subscribe(callback: StateChangeCallback): () => void {
     this.listeners.add(callback);
-    // Immediately send current state to new subscriber
-    callback(this.getStateMessage());
+    callback(this.lastMessage);
     return () => this.listeners.delete(callback);
   }
 
+  getStatus(): ServerMessage {
+    return this.lastMessage;
+  }
+
   private broadcast(): void {
-    const message = this.getStateMessage();
     for (const listener of this.listeners) {
-      listener(message);
+      listener(this.lastMessage);
     }
-  }
-
-  private getStateMessage(): ServerMessage {
-    const sessions = Array.from(this.sessions.values());
-    const working = sessions.filter((s) => s.status === "working").length;
-    const waitingForInput = sessions.filter(
-      (s) => s.status === "waiting_for_input"
-    ).length;
-    return {
-      type: "state",
-      blocked: working === 0,
-      sessions: sessions.length,
-      working,
-      waitingForInput,
-    };
-  }
-
-  handleHook(payload: HookPayload): void {
-    const { session_id, hook_event_name } = payload;
-
-    switch (hook_event_name) {
-      case "SessionStart":
-        this.sessions.set(session_id, {
-          id: session_id,
-          status: "idle",
-          lastActivity: new Date(),
-          cwd: payload.cwd,
-        });
-        console.log("Claude Code session connected");
-        break;
-
-      case "SessionEnd":
-        this.sessions.delete(session_id);
-        console.log("Claude Code session disconnected");
-        break;
-
-      case "UserPromptSubmit":
-        this.ensureSession(session_id, payload.cwd);
-        const promptSession = this.sessions.get(session_id)!;
-        promptSession.status = "working";
-        promptSession.waitingForInputSince = undefined;
-        promptSession.lastActivity = new Date();
-        break;
-
-      case "PreToolUse":
-        this.ensureSession(session_id, payload.cwd);
-        const toolSession = this.sessions.get(session_id)!;
-        // Check if this is a user input tool
-        if (payload.tool_name && USER_INPUT_TOOLS.includes(payload.tool_name)) {
-          toolSession.status = "waiting_for_input";
-          toolSession.waitingForInputSince = new Date();
-        } else if (toolSession.status === "waiting_for_input") {
-          // If waiting for input, only reset after 500ms (to ignore immediate tool calls like Edit)
-          const elapsed = Date.now() - (toolSession.waitingForInputSince?.getTime() ?? 0);
-          if (elapsed > 500) {
-            toolSession.status = "working";
-            toolSession.waitingForInputSince = undefined;
-          }
-        } else {
-          toolSession.status = "working";
-        }
-        toolSession.lastActivity = new Date();
-        break;
-
-      case "Stop":
-        this.ensureSession(session_id, payload.cwd);
-        const idleSession = this.sessions.get(session_id)!;
-        if (idleSession.status === "waiting_for_input") {
-          // If waiting for input, only reset after 500ms (to ignore immediate Stop after AskUserQuestion)
-          const elapsed = Date.now() - (idleSession.waitingForInputSince?.getTime() ?? 0);
-          if (elapsed > 500) {
-            idleSession.status = "idle";
-            idleSession.waitingForInputSince = undefined;
-          }
-        } else {
-          idleSession.status = "idle";
-        }
-        idleSession.lastActivity = new Date();
-        break;
-    }
-
-    this.broadcast();
-  }
-
-  private ensureSession(sessionId: string, cwd?: string): void {
-    if (!this.sessions.has(sessionId)) {
-      this.sessions.set(sessionId, {
-        id: sessionId,
-        status: "idle",
-        lastActivity: new Date(),
-        cwd,
-      });
-      console.log("Claude Code session connected");
-    }
-  }
-
-  private cleanupStaleSessions(): void {
-    const now = Date.now();
-    let removed = 0;
-
-    for (const [id, session] of this.sessions) {
-      if (now - session.lastActivity.getTime() > SESSION_TIMEOUT_MS) {
-        this.sessions.delete(id);
-        removed++;
-      }
-    }
-
-    if (removed > 0) {
-      this.broadcast();
-    }
-  }
-
-  getStatus(): { blocked: boolean; sessions: Session[] } {
-    const sessions = Array.from(this.sessions.values());
-    const working = sessions.filter((s) => s.status === "working").length;
-    return {
-      blocked: working === 0,
-      sessions,
-    };
   }
 
   destroy(): void {
-    if (this.cleanupInterval) {
-      clearInterval(this.cleanupInterval);
-    }
-    this.sessions.clear();
+    this.unsubscribeWatcher?.();
+    this.unsubscribeWatcher = null;
+    this.watcher.stop();
     this.listeners.clear();
   }
 }
 
-export const state = new SessionState();
+export const state = new CursorState();

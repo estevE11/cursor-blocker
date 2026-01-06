@@ -1,58 +1,30 @@
 #!/usr/bin/env node
 
-import { createInterface } from "readline";
-import { startServer } from "./server.js";
-import { setupHooks, removeHooks, areHooksConfigured } from "./setup.js";
-import { DEFAULT_PORT } from "@claude-blocker/shared";
+import { startServer } from "./index.js";
+import { DEFAULT_PORT } from "@cursor-blocker/shared";
 
 const args = process.argv.slice(2);
 
-function prompt(question: string): Promise<string> {
-  const rl = createInterface({
-    input: process.stdin,
-    output: process.stdout,
-  });
-
-  return new Promise((resolve) => {
-    rl.question(question, (answer) => {
-      rl.close();
-      resolve(answer);
-    });
-  });
-}
-
 function printHelp(): void {
   console.log(`
-Claude Blocker - Block distracting sites when Claude Code isn't working
+Cursor Blocker - Block distracting sites unless Cursor AI is actively generating code
 
 Usage:
-  npx claude-blocker [options]
+  npx cursor-blocker [options]
 
 Options:
-  --setup     Configure Claude Code hooks
-  --remove    Remove Claude Code hooks
   --port      Server port (default: ${DEFAULT_PORT})
   --help      Show this help message
 
 Examples:
-  npx claude-blocker            # Start the server (prompts for setup on first run)
-  npx claude-blocker --port 9000
+  npx cursor-blocker
+  npx cursor-blocker --port 9000
 `);
 }
 
 async function main(): Promise<void> {
   if (args.includes("--help") || args.includes("-h")) {
     printHelp();
-    process.exit(0);
-  }
-
-  if (args.includes("--setup")) {
-    setupHooks();
-    process.exit(0);
-  }
-
-  if (args.includes("--remove")) {
-    removeHooks();
     process.exit(0);
   }
 
@@ -66,20 +38,6 @@ async function main(): Promise<void> {
     } else {
       console.error("Invalid port number");
       process.exit(1);
-    }
-  }
-
-  // Check if hooks are configured, prompt for setup if not
-  if (!areHooksConfigured()) {
-    console.log("Claude Blocker hooks are not configured yet.\n");
-    const answer = await prompt("Would you like to set them up now? (Y/n) ");
-    const normalized = answer.trim().toLowerCase();
-
-    if (normalized === "" || normalized === "y" || normalized === "yes") {
-      setupHooks();
-      console.log(""); // Add spacing before server start
-    } else {
-      console.log("\nSkipping setup. You can run 'npx claude-blocker --setup' later.\n");
     }
   }
 

@@ -1,31 +1,34 @@
 {
-  "name": "claude-blocker",
+  "name": "cursor-blocker",
   "version": "0.0.2",
-  "description": "Block distracting websites unless Claude Code is actively running inference",
+  "description": "Blocks distracting sites unless Cursor AI is actively generating code",
   "author": "Theo Browne",
   "repository": {
     "type": "git",
-    "url": "https://github.com/t3-content/claude-blocker.git"
+    "url": "https://github.com/esteve/cursor-blocker.git"
   },
-  "homepage": "https://github.com/t3-content/claude-blocker",
+  "homepage": "https://github.com/esteve/cursor-blocker",
   "bugs": {
-    "url": "https://github.com/t3-content/claude-blocker/issues"
+    "url": "https://github.com/esteve/cursor-blocker/issues"
   },
   "type": "module",
   "bin": {
-    "claude-blocker": "./dist/bin.js"
+    "cursor-blocker": "./dist/bin.js"
   },
-  "main": "./dist/server.js",
-  "types": "./dist/server.d.ts",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "files": [
     "dist"
   ],
   "scripts": {
-    "build": "tsup src/bin.ts src/server.ts --format esm --dts --clean",
+    "build": "tsup src/bin.ts src/index.ts --format esm --dts --clean",
+    "start": "node dist/bin.js",
     "dev": "tsx src/bin.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@cursor-blocker/shared": "workspace:*",
+    "puppeteer-core": "^24.22.2",
     "ws": "^8.18.0"
   },
   "devDependencies": {
@@ -36,8 +39,8 @@
     "typescript": "^5.7.2"
   },
   "keywords": [
-    "claude",
-    "claude-code",
+    "cursor",
+    "cursor-ide",
     "productivity",
     "blocker",
     "focus",

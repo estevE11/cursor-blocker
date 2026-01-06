@@ -1,17 +1,8 @@
-import { createServer, type IncomingMessage, type ServerResponse } from "http";
+import { createServer, type ServerResponse } from "http";
 import { WebSocketServer, WebSocket } from "ws";
-import type { HookPayload, ClientMessage } from "./types.js";
-import { DEFAULT_PORT } from "./types.js";
+import type { ClientMessage } from "@cursor-blocker/shared";
+import { DEFAULT_PORT } from "@cursor-blocker/shared";
 import { state } from "./state.js";
-
-function parseBody(req: IncomingMessage): Promise<string> {
-  return new Promise((resolve, reject) => {
-    let body = "";
-    req.on("data", (chunk) => (body += chunk));
-    req.on("end", () => resolve(body));
-    req.on("error", reject);
-  });
-}
 
 function sendJson(res: ServerResponse, data: unknown, status = 200): void {
   res.writeHead(status, { "Content-Type": "application/json" });
@@ -19,6 +10,8 @@ function sendJson(res: ServerResponse, data: unknown, status = 200): void {
 }
 
 export function startServer(port: number = DEFAULT_PORT): void {
+  state.start();
+
   const server = createServer(async (req, res) => {
     // CORS headers for local development
     res.setHeader("Access-Control-Allow-Origin", "*");
@@ -36,25 +29,6 @@ export function startServer(port: number = DEFAULT_PORT): void {
     // Health check / status endpoint
     if (req.method === "GET" && url.pathname === "/status") {
       sendJson(res, state.getStatus());
-      return;
-    }
-
-    // Hook endpoint - receives notifications from Claude Code
-    if (req.method === "POST" && url.pathname === "/hook") {
-      try {
-        const body = await parseBody(req);
-        const payload = JSON.parse(body) as HookPayload;
-
-        if (!payload.session_id || !payload.hook_event_name) {
-          sendJson(res, { error: "Invalid payload" }, 400);
-          return;
-        }
-
-        state.handleHook(payload);
-        sendJson(res, { ok: true });
-      } catch {
-        sendJson(res, { error: "Invalid JSON" }, 400);
-      }
       return;
     }
 
@@ -101,12 +75,13 @@ export function startServer(port: number = DEFAULT_PORT): void {
     console.log(`
 ┌─────────────────────────────────────┐
 │                                     │
-│   Claude Blocker Server             │
+│   Cursor Blocker Server             │
 │                                     │
 │   HTTP:      http://localhost:${port}  │
 │   WebSocket: ws://localhost:${port}/ws │
 │                                     │
-│   Waiting for Claude Code hooks...  │
+│   Connecting to Cursor (CDP)...     │
+│   127.0.0.1:9222                    │
 │                                     │
 └─────────────────────────────────────┘
 `);
@@ -121,3 +96,5 @@ export function startServer(port: number = DEFAULT_PORT): void {
     process.exit(0);
   });
 }
+
+
