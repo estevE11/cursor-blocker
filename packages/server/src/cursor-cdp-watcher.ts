@@ -201,7 +201,9 @@ export class CursorCdpWatcher {
             updatedAt: Date.now(),
           });
           log(`connecting to ${CDP_URL} (retry every ${CONNECT_RETRY_MS}ms)`);
-          this.browser = await puppeteer.connect({ browserURL: CDP_URL });
+          // IMPORTANT: don't override the window/viewport size of the already-running Cursor app.
+          // If omitted, Puppeteer may apply its default viewport (~800x600) via device metrics override.
+          this.browser = await puppeteer.connect({ browserURL: CDP_URL, defaultViewport: null });
           log("connected to CDP");
           this.browser.on("disconnected", () => {
             this.browser = null;
