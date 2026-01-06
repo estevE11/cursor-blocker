@@ -1,6 +1,6 @@
 export {};
 
-const DEFAULT_DOMAINS = ["x.com", "youtube.com"];
+const DEFAULT_DOMAINS = ["x.com", "twitter.com", "youtube.com"];
 
 interface ExtensionState {
   blocked: boolean;
@@ -156,7 +156,7 @@ function updateUI(state: ExtensionState): void {
     statusText.textContent = "Offline";
   } else if (state.working > 0) {
     statusIndicator.className = "status-indicator working";
-    statusText.textContent = "Claude Working";
+    statusText.textContent = "Cursor AI Working";
   } else {
     statusIndicator.className = "status-indicator connected";
     statusText.textContent = "Connected";

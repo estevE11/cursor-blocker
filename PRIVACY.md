@@ -1,18 +1,18 @@
-# Privacy Policy for Claude Blocker
+# Privacy Policy for Cursor Blocker
 
 **Last updated:** December 2024
 
 ## Overview
 
-Claude Blocker is a productivity tool that blocks distracting websites when Claude Code is not actively working. This privacy policy explains what data is collected and how it's used.
+Cursor Blocker is a productivity tool that blocks distracting websites when Cursor AI is not actively working. This privacy policy explains what data is collected and how it's used.
 
 ## Data Collection
 
 ### What We Collect
 
-Claude Blocker collects and stores the following data **locally on your device**:
+Cursor Blocker collects and stores the following data **locally on your device**:
 
-1. **Blocked Domains List** — The websites you configure to be blocked (default: x.com, youtube.com)
+1. **Blocked Domains List** — The websites you configure to be blocked (default: x.com, twitter.com, youtube.com)
 2. **Bypass State** — Whether you've used your daily emergency bypass, and when it expires
 3. **Last Bypass Date** — The date of your last bypass usage (to enforce once-per-day limit)
 
@@ -38,18 +38,18 @@ The extension communicates only with a **local server running on your machine** 
 
 - Runs entirely on your computer
 - Never connects to the internet
-- Only receives hook notifications from Claude Code running on your machine
+- Connects to Cursor locally via Chrome DevTools Protocol (CDP) on `127.0.0.1:9222` to determine whether Cursor AI is active
 
 ## Third-Party Services
 
-Claude Blocker does not use any third-party services, analytics, or tracking.
+Cursor Blocker does not use any third-party services, analytics, or tracking.
 
 ## Data Deletion
 
-To delete all Claude Blocker data:
+To delete all Cursor Blocker data:
 
 1. Open Chrome extension settings
-2. Click on Claude Blocker → "Remove"
+2. Click on Cursor Blocker → "Remove"
 3. All locally stored data will be deleted
 
 Alternatively, clear the extension's storage via Chrome DevTools.
@@ -64,7 +64,7 @@ Alternatively, clear the extension's storage via Chrome DevTools.
 
 ## Children's Privacy
 
-Claude Blocker is not directed at children under 13 and does not knowingly collect data from children.
+Cursor Blocker is not directed at children under 13 and does not knowingly collect data from children.
 
 ## Changes to This Policy
 
@@ -73,9 +73,9 @@ We may update this privacy policy from time to time. Changes will be posted to t
 ## Contact
 
 For questions about this privacy policy, please open an issue at:
-https://github.com/t3-content/claude-blocker/issues
+https://github.com/esteve/cursor-blocker/issues
 
 ## Open Source
 
-Claude Blocker is open source software. You can review the complete source code at:
-https://github.com/t3-content/claude-blocker
+Cursor Blocker is open source software. You can review the complete source code at:
+https://github.com/esteve/cursor-blocker

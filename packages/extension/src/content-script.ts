@@ -1,8 +1,8 @@
 export {};
 
-const MODAL_ID = "claude-blocker-modal";
-const TOAST_ID = "claude-blocker-toast";
-const DEFAULT_DOMAINS = ["x.com", "youtube.com"];
+const MODAL_ID = "cursor-blocker-modal";
+const TOAST_ID = "cursor-blocker-toast";
+const DEFAULT_DOMAINS = ["x.com", "twitter.com", "youtube.com"];
 
 // State shape from service worker
 interface PublicState {
@@ -19,6 +19,7 @@ let lastKnownState: PublicState | null = null;
 let shouldBeBlocked = false;
 let blockedDomains: string[] = [];
 let toastDismissed = false;
+let wasBlocked = false;
 
 // Load domains from storage
 function loadDomains(): Promise<string[]> {
@@ -136,7 +137,7 @@ function showToast(): void {
   shadow.innerHTML = `
     <div style="all:initial;position:fixed;bottom:24px;right:24px;background:#1a1a1a;border:1px solid #333;border-radius:12px;padding:16px 20px;font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#fff;z-index:2147483647;display:flex;align-items:center;gap:12px;box-shadow:0 4px 12px rgba(0,0,0,0.3);-webkit-font-smoothing:antialiased;">
       <span style="font-size:18px;">💬</span>
-      <span>Claude has a question for you!</span>
+      <span>Cursor AI needs your input</span>
       <button id="dismiss" style="all:initial;margin-left:8px;padding:4px 8px;background:#333;border:none;border-radius:6px;color:#888;font-family:Arial,Helvetica,sans-serif;font-size:12px;cursor:pointer;">Dismiss</button>
     </div>
   `;
@@ -195,17 +196,17 @@ function renderState(state: PublicState): void {
     message.textContent = "Server offline. Start the blocker server to continue.";
     setDotColor(dot, "red");
     status.textContent = "Server Offline";
-    hint.innerHTML = `Run <span style="background:#2a2a2a;padding:2px 8px;border-radius:4px;font-family:ui-monospace,monospace;font-size:12px;">npx claude-blocker</span> to start`;
+    hint.innerHTML = `Run <span style="background:#2a2a2a;padding:2px 8px;border-radius:4px;font-family:ui-monospace,monospace;font-size:12px;">pnpm start</span> in <span style="background:#2a2a2a;padding:2px 8px;border-radius:4px;font-family:ui-monospace,monospace;font-size:12px;">packages/server</span>`;
   } else if (state.sessions === 0) {
-    message.textContent = "No Claude Code sessions detected.";
+    message.textContent = "Cursor not detected (no active workspace state database found).";
     setDotColor(dot, "green");
-    status.textContent = "Waiting for Claude Code";
-    hint.textContent = "Open a terminal and start Claude Code";
+    status.textContent = "Waiting for Cursor";
+    hint.textContent = "Open Cursor and use the AI chat";
   } else {
-    message.textContent = "Your job finished!";
+    message.textContent = "Cursor AI is idle — back to work.";
     setDotColor(dot, "green");
-    status.textContent = `${state.sessions} session${state.sessions > 1 ? "s" : ""} idle`;
-    hint.textContent = "Type a prompt in Claude Code to unblock";
+    status.textContent = "Blocking distractions";
+    hint.textContent = "Send a prompt in Cursor AI to unblock";
   }
 }
 
@@ -231,12 +232,13 @@ function handleState(state: PublicState): void {
 
   if (!isBlockedDomain()) {
     shouldBeBlocked = false;
+    wasBlocked = false;
     removeModal();
     removeToast();
     return;
   }
 
-  // Show toast notification when Claude has a question (non-blocking)
+  // Show toast notification when Cursor AI needs input (non-blocking)
   if (state.waitingForInput > 0) {
     showToast();
   } else {
@@ -247,12 +249,36 @@ function handleState(state: PublicState): void {
   // Show blocking modal when truly idle
   if (state.blocked) {
     shouldBeBlocked = true;
+    if (!wasBlocked) {
+      pauseAllVideos();
+    }
+    wasBlocked = true;
     createModal();
     renderState(state);
   } else {
     shouldBeBlocked = false;
+    wasBlocked = false;
     removeModal();
   }
+}
+
+function pauseAllVideos(): void {
+  try {
+    // Try directly in the content-script context
+    document.querySelectorAll("video").forEach((v) => {
+      try {
+        v.pause();
+      } catch {}
+    });
+  } catch {}
+
+  try {
+    // Also inject into the page context (more reliable on some sites)
+    const script = document.createElement("script");
+    script.textContent = `(()=>{try{document.querySelectorAll('video').forEach(v=>{try{v.pause()}catch{}})}catch{}})();`;
+    (document.documentElement || document.head).appendChild(script);
+    script.remove();
+  } catch {}
 }
 
 // Request state from service worker

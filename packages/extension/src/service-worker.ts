@@ -73,7 +73,7 @@ function connect() {
     websocket = new WebSocket(WS_URL);
 
     websocket.onopen = () => {
-      console.log("[Claude Blocker] Connected");
+      console.log("[Cursor Blocker] Connected");
       state.serverConnected = true;
       retryCount = 0;
       startKeepalive();
@@ -93,7 +93,7 @@ function connect() {
     };
 
     websocket.onclose = () => {
-      console.log("[Claude Blocker] Disconnected");
+      console.log("[Cursor Blocker] Disconnected");
       state.serverConnected = false;
       stopKeepalive();
       broadcast();

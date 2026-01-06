@@ -1,5 +1,5 @@
 {
-  "name": "claude-blocker-monorepo",
+  "name": "cursor-blocker-monorepo",
   "private": true,
   "workspaces": [
     "packages/*"
